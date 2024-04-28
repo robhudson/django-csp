@@ -7,49 +7,71 @@ from django.conf import settings
 from django.utils.encoding import force_str
 
 
+DEFAULT_CONFIG = {
+    "EXCLUDE_URL_PREFIXES": [],
+    "INCLUDE_NONCE_IN": [],
+    "REPORT_ONLY": False,
+    "REPORT_PERCENTAGE": 0,  # An integer between 0 and 100.
+}
+
+
+DEFAULT_DIRECTIVES = {
+    # Fetch Directives
+    "child-src": None,
+    "connect-src": None,
+    "default-src": ["'self'"],
+    "script-src": None,
+    "script-src-attr": None,
+    "script-src-elem": None,
+    "object-src": None,
+    "style-src": None,
+    "style-src-attr": None,
+    "style-src-elem": None,
+    "font-src": None,
+    "frame-src": None,
+    "img-src": None,
+    "manifest-src": None,
+    "media-src": None,
+    "prefetch-src": None,  # Deprecated.
+    # Document Directives
+    "base-uri": None,
+    "plugin-types": None,  # Deprecated.
+    "sandbox": None,
+    # Navigation Directives
+    "form-action": None,
+    "frame-ancestors": None,
+    "navigate-to": None,
+    # Reporting Directives
+    "report-uri": None,
+    "report-to": None,
+    "require-sri-for": None,
+    # Trusted Types Directives
+    "require-trusted-types-for": None,
+    "trusted-types": None,
+    # Other Directives
+    "webrtc": None,
+    "worker-src": None,
+    #
+    "upgrade-insecure-requests": False,
+    "block-all-mixed-content": False,  # Deprecated.
+}
+
+
 def from_settings():
-    return {
-        # Fetch Directives
-        "child-src": getattr(settings, "CSP_CHILD_SRC", None),
-        "connect-src": getattr(settings, "CSP_CONNECT_SRC", None),
-        "default-src": getattr(settings, "CSP_DEFAULT_SRC", ["'self'"]),
-        "script-src": getattr(settings, "CSP_SCRIPT_SRC", None),
-        "script-src-attr": getattr(settings, "CSP_SCRIPT_SRC_ATTR", None),
-        "script-src-elem": getattr(settings, "CSP_SCRIPT_SRC_ELEM", None),
-        "object-src": getattr(settings, "CSP_OBJECT_SRC", None),
-        "style-src": getattr(settings, "CSP_STYLE_SRC", None),
-        "style-src-attr": getattr(settings, "CSP_STYLE_SRC_ATTR", None),
-        "style-src-elem": getattr(settings, "CSP_STYLE_SRC_ELEM", None),
-        "font-src": getattr(settings, "CSP_FONT_SRC", None),
-        "frame-src": getattr(settings, "CSP_FRAME_SRC", None),
-        "img-src": getattr(settings, "CSP_IMG_SRC", None),
-        "manifest-src": getattr(settings, "CSP_MANIFEST_SRC", None),
-        "media-src": getattr(settings, "CSP_MEDIA_SRC", None),
-        "prefetch-src": getattr(settings, "CSP_PREFETCH_SRC", None),
-        "worker-src": getattr(settings, "CSP_WORKER_SRC", None),
-        # Document Directives
-        "base-uri": getattr(settings, "CSP_BASE_URI", None),
-        "plugin-types": getattr(settings, "CSP_PLUGIN_TYPES", None),
-        "sandbox": getattr(settings, "CSP_SANDBOX", None),
-        # Navigation Directives
-        "form-action": getattr(settings, "CSP_FORM_ACTION", None),
-        "frame-ancestors": getattr(settings, "CSP_FRAME_ANCESTORS", None),
-        "navigate-to": getattr(settings, "CSP_NAVIGATE_TO", None),
-        # Reporting Directives
-        "report-uri": getattr(settings, "CSP_REPORT_URI", None),
-        "report-to": getattr(settings, "CSP_REPORT_TO", None),
-        "require-sri-for": getattr(settings, "CSP_REQUIRE_SRI_FOR", None),
-        # trusted Types Directives
-        "require-trusted-types-for": getattr(settings, "CSP_REQUIRE_TRUSTED_TYPES_FOR", None),
-        "trusted-types": getattr(settings, "CSP_TRUSTED_TYPES", None),
-        # Other Directives
-        "upgrade-insecure-requests": getattr(settings, "CSP_UPGRADE_INSECURE_REQUESTS", False),
-        "block-all-mixed-content": getattr(settings, "CSP_BLOCK_ALL_MIXED_CONTENT", False),
-    }
+    CSP = getattr(settings, "CONTENT_SECURITY_POLICY", [{}])[0]
+    config = {"DIRECTIVES": {}}
+    for key, value in DEFAULT_CONFIG.items():
+        config[key] = CSP.get(key, value)
+    for key, value in DEFAULT_DIRECTIVES.items():
+        config["DIRECTIVES"][key] = CSP.get("DIRECTIVES", {}).get(key, value)
+    return config
 
 
 def build_policy(config=None, update=None, replace=None, nonce=None):
     """Builds the policy as a string from the settings."""
+
+    # TODO: If `report-to` is set, also add a `Report-To` header.
+    # TODO: Consider using `set`s here to de-dupe values?
 
     if config is None:
         config = from_settings()
@@ -57,32 +79,33 @@ def build_policy(config=None, update=None, replace=None, nonce=None):
 
     update = update if update is not None else {}
     replace = replace if replace is not None else {}
-    csp = {}
 
-    for k in set(chain(config, replace)):
+    csp = {"DIRECTIVES": {}}
+
+    for k in set(chain(config["DIRECTIVES"], replace)):
         if k in replace:
             v = replace[k]
         else:
-            v = config[k]
+            v = config["DIRECTIVES"][k]
         if v is not None:
             v = copy.copy(v)
             if not isinstance(v, (list, tuple)):
                 v = (v,)
-            csp[k] = v
+            csp["DIRECTIVES"][k] = v
 
     for k, v in update.items():
         if v is not None:
             if not isinstance(v, (list, tuple)):
                 v = (v,)
-            if csp.get(k) is None:
-                csp[k] = v
+            if csp["DIRECTIVES"].get(k) is None:
+                csp["DIRECTIVES"][k] = v
             else:
-                csp[k] += tuple(v)
+                csp["DIRECTIVES"][k] += tuple(v)
 
-    report_uri = csp.pop("report-uri", None)
+    report_uri = csp["DIRECTIVES"].pop("report-uri", None)
 
     policy_parts = {}
-    for key, value in csp.items():
+    for key, value in csp["DIRECTIVES"].items():
         # flag directives with an empty directive value
         if len(value) and value[0] is True:
             policy_parts[key] = ""
@@ -96,10 +119,10 @@ def build_policy(config=None, update=None, replace=None, nonce=None):
         policy_parts["report-uri"] = " ".join(report_uri)
 
     if nonce:
-        include_nonce_in = getattr(settings, "CSP_INCLUDE_NONCE_IN", ["default-src"])
+        include_nonce_in = config.get("INCLUDE_NONCE_IN", ["default-src"])
         for section in include_nonce_in:
             policy = policy_parts.get(section, "")
-            policy_parts[section] = ("{} {}".format(policy, "'nonce-%s'" % nonce)).strip()
+            policy_parts[section] = f"{policy} 'nonce-{nonce}'".strip()
 
     return "; ".join([f"{k} {val}".strip() for k, val in policy_parts.items()])
 

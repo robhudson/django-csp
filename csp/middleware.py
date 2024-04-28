@@ -32,11 +32,15 @@ class CSPMiddleware(MiddlewareMixin):
         request.csp_nonce = SimpleLazyObject(nonce)
 
     def process_response(self, request, response):
+        # NOTE: Only supporting a single policy for now.
+        CSP = getattr(settings, "CONTENT_SECURITY_POLICY", [{}])[0]
+
         if getattr(response, "_csp_exempt", False):
             return response
 
         # Check for ignored path prefix.
-        prefixes = getattr(settings, "CSP_EXCLUDE_URL_PREFIXES", ())
+        # TODO: Separate out the enforce and report-only logic.
+        prefixes = tuple(filter(None.__ne__, CSP.get("EXCLUDE_URL_PREFIXES", ())))
         if request.path_info.startswith(prefixes):
             return response
 
@@ -49,8 +53,9 @@ class CSPMiddleware(MiddlewareMixin):
         if status_code in exempted_debug_codes and settings.DEBUG:
             return response
 
+        # TODO: Separate out the enforce and report-only logic.
         header = "Content-Security-Policy"
-        if getattr(settings, "CSP_REPORT_ONLY", False):
+        if CSP.get("REPORT_ONLY", False):
             header += "-Report-Only"
 
         if header in response:

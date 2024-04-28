@@ -16,8 +16,9 @@ class RateLimitedCSPMiddleware(CSPMiddleware):
         replace = getattr(response, "_csp_replace", {})
         nonce = getattr(request, "_csp_nonce", None)
 
-        report_percentage = getattr(settings, "CSP_REPORT_PERCENTAGE")
-        include_report_uri = random.random() < report_percentage
+        CSP = getattr(settings, "CONTENT_SECURITY_POLICY", [{}])[0]
+        report_percentage = CSP.get("REPORT_PERCENTAGE", 100)
+        include_report_uri = random.randint(0, 100) < report_percentage
         if not include_report_uri:
             replace["report-uri"] = None
 

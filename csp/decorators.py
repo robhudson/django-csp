@@ -11,9 +11,8 @@ def csp_exempt(f):
     return _wrapped
 
 
-def csp_update(**kwargs):
-    update = {k.lower().replace("_", "-"): v for k, v in kwargs.items()}
-
+# TODO: By passing a dict here, we can only update one policy, not both. Hmm.
+def csp_update(update):
     def decorator(f):
         @wraps(f)
         def _wrapped(*a, **kw):
@@ -26,9 +25,7 @@ def csp_update(**kwargs):
     return decorator
 
 
-def csp_replace(**kwargs):
-    replace = {k.lower().replace("_", "-"): v for k, v in kwargs.items()}
-
+def csp_replace(replace):
     def decorator(f):
         @wraps(f)
         def _wrapped(*a, **kw):
@@ -41,9 +38,7 @@ def csp_replace(**kwargs):
     return decorator
 
 
-def csp(**kwargs):
-    config = {k.lower().replace("_", "-"): [v] if isinstance(v, str) else v for k, v in kwargs.items()}
-
+def csp(config):
     def decorator(f):
         @wraps(f)
         def _wrapped(*a, **kw):

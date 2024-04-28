@@ -49,8 +49,7 @@ passed to the decorator will be used verbatim.
     default-src 'self'; img-src imgsrv.com
 
 The arguments to the decorator the same as the :ref:`settings
-<configuration-chapter>` without the ``CSP_`` prefix, e.g. ``IMG_SRC``.
-(They are also case-insensitive.) The values are either strings, lists
+<configuration-chapter>`. The values are either strings, lists
 or tuples.
 
 ::
@@ -58,7 +57,7 @@ or tuples.
     from csp.decorators import csp_update
 
     # Will allow images from imgsrv.com.
-    @csp_update(IMG_SRC='imgsrv.com')
+    @csp_update({"DIRECTIVES": {"img-src": 'imgsrv.com'})
     def myview(request):
         return render(...)
 
@@ -75,9 +74,8 @@ The arguments and values are the same as ``@csp_update``::
 
     from csp.decorators import csp_replace
 
-    # settings.CSP_IMG_SRC = ['imgsrv.com']
     # Will allow images from imgsrv2.com, but not imgsrv.com.
-    @csp_replace(IMG_SRC='imgsrv2.com')
+    @csp_replace({"DIRECTIVES": {"img-src": 'imgsrv2.com'})
     def myview(request):
         return render(...)
 
@@ -91,7 +89,9 @@ are as above::
 
     from csp.decorators import csp
 
-    @csp(DEFAULT_SRC=["'self'"], IMG_SRC=['imgsrv.com'],
-         SCRIPT_SRC=['scriptsrv.com', 'googleanalytics.com'])
+    @csp({"DIRECTIVES": {
+        "default_src": ["'self'"],
+        "img-src": ["imgsrv.com"],
+        "script-src": ["scriptsrv.com", "googleanalytics.com"]}})
     def myview(request):
         return render(...)

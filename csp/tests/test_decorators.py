@@ -19,7 +19,7 @@ def test_csp_exempt():
     assert response._csp_exempt
 
 
-@override_settings(CSP_IMG_SRC=["foo.com"])
+@override_settings(CONTENT_SECURITY_POLICY=[{"DIRECTIVES": {"img-src": ["foo.com"]}}])
 def test_csp_update():
     def view_without_decorator(request):
         return HttpResponse()
@@ -29,7 +29,7 @@ def test_csp_update():
     policy_list = sorted(response["Content-Security-Policy"].split("; "))
     assert policy_list == ["default-src 'self'", "img-src foo.com"]
 
-    @csp_update(IMG_SRC="bar.com")
+    @csp_update({"img-src": "bar.com"})
     def view_with_decorator(request):
         return HttpResponse()
 
@@ -45,7 +45,7 @@ def test_csp_update():
     assert policy_list == ["default-src 'self'", "img-src foo.com"]
 
 
-@override_settings(CSP_IMG_SRC=["foo.com"])
+@override_settings(CONTENT_SECURITY_POLICY=[{"DIRECTIVES": {"img-src": ["foo.com"]}}])
 def test_csp_replace():
     def view_without_decorator(request):
         return HttpResponse()
@@ -55,7 +55,7 @@ def test_csp_replace():
     policy_list = sorted(response["Content-Security-Policy"].split("; "))
     assert policy_list == ["default-src 'self'", "img-src foo.com"]
 
-    @csp_replace(IMG_SRC="bar.com")
+    @csp_replace({"img-src": "bar.com"})
     def view_with_decorator(request):
         return HttpResponse()
 
@@ -70,7 +70,7 @@ def test_csp_replace():
     policy_list = sorted(response["Content-Security-Policy"].split("; "))
     assert policy_list == ["default-src 'self'", "img-src foo.com"]
 
-    @csp_replace(IMG_SRC=None)
+    @csp_replace({"img-src": None})
     def view_removing_directive(request):
         return HttpResponse()
 
@@ -89,12 +89,12 @@ def test_csp():
     policy_list = sorted(response["Content-Security-Policy"].split("; "))
     assert policy_list == ["default-src 'self'"]
 
-    @csp(IMG_SRC=["foo.com"], FONT_SRC=["bar.com"])
+    @csp({"DIRECTIVES": {"img-src": ["foo.com"], "font-src": ["bar.com"]}})
     def view_with_decorator(request):
         return HttpResponse()
 
     response = view_with_decorator(REQUEST)
-    assert response._csp_config == {"img-src": ["foo.com"], "font-src": ["bar.com"]}
+    assert response._csp_config == {"DIRECTIVES": {"img-src": ["foo.com"], "font-src": ["bar.com"]}}
     mw.process_response(REQUEST, response)
     policy_list = sorted(response["Content-Security-Policy"].split("; "))
     assert policy_list == ["font-src bar.com", "img-src foo.com"]
@@ -107,12 +107,12 @@ def test_csp():
 
 def test_csp_string_values():
     # Test backwards compatibility where values were strings
-    @csp(IMG_SRC="foo.com", FONT_SRC="bar.com")
+    @csp({"DIRECTIVES": {"img-src": ["foo.com"], "font-src": ["bar.com"]}})
     def view_with_decorator(request):
         return HttpResponse()
 
     response = view_with_decorator(REQUEST)
-    assert response._csp_config == {"img-src": ["foo.com"], "font-src": ["bar.com"]}
+    assert response._csp_config == {"DIRECTIVES": {"img-src": ["foo.com"], "font-src": ["bar.com"]}}
     mw.process_response(REQUEST, response)
     policy_list = sorted(response["Content-Security-Policy"].split("; "))
     assert policy_list == ["font-src bar.com", "img-src foo.com"]

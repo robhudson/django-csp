@@ -10,7 +10,7 @@ mw = RateLimitedCSPMiddleware(response())
 rf = RequestFactory()
 
 
-@override_settings(CSP_REPORT_PERCENTAGE=0.1, CSP_REPORT_URI="x")
+@override_settings(CONTENT_SECURITY_POLICY=[{"REPORT_PERCENTAGE": 10, "DIRECTIVES": {"report-uri": "x"}}])
 def test_report_percentage():
     times_seen = 0
     for _ in range(5000):

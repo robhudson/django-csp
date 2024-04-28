@@ -1,8 +1,10 @@
-import django
-
-CSP_REPORT_ONLY = False
-
-CSP_INCLUDE_NONCE_IN = ["default-src"]
+CONTENT_SECURITY_POLICY = [
+    {
+        "REPORT_ONLY": False,
+        "INCLUDE_NONCE_IN": ["default-src"],
+        "DIRECTIVES": {},
+    }
+]
 
 DATABASES = {
     "default": {
@@ -39,8 +41,3 @@ TEMPLATES = [
         "OPTIONS": {},
     },
 ]
-
-
-# Django >1.6 requires `setup` call to initialise apps framework
-if hasattr(django, "setup"):
-    django.setup()
